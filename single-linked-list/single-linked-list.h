@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 #include <algorithm>
+#include <cassert>
 
 template <typename Type>
 class SingleLinkedList {
@@ -59,6 +60,7 @@ class SingleLinkedList {
         }
 
         BasicIterator& operator++() noexcept {
+			assert(node_ != nullptr);
             node_ = node_->next_node;
             return *this;
         }
@@ -70,10 +72,12 @@ class SingleLinkedList {
         }
 
         [[nodiscard]] reference operator*() const noexcept {
+			assert(node_ != nullptr);
             return node_->value;
         }
 
         [[nodiscard]] pointer operator->() const noexcept {
+			assert(node_ != nullptr);
             return &(node_->value);
         }
 
@@ -86,29 +90,33 @@ public:
         :head_(Node())
         ,size_(0) {
     }
-    
-    SingleLinkedList(std::initializer_list<Type> values) {
-        for (auto it = std::rbegin(values); it != std::rend(values); ++it) {
-            PushFront(*it);
-        }
-        size_ = values.size();
-    }
 
-    SingleLinkedList(const SingleLinkedList& other) {
+    template <typename Values>
+	void Init(const Values& values) {
         SingleLinkedList tmp;
         auto prev_node_ptr = &tmp.head_;
-        for (auto& value: other) {
+        for (auto& value: values) {
             auto next_node_ptr = new Node(value, nullptr);
             prev_node_ptr->next_node = next_node_ptr;
             prev_node_ptr = next_node_ptr;
+            ++tmp.size_;
         }
-        this->swap(tmp);
+        swap(tmp);
+        
     }
+
+	SingleLinkedList(std::initializer_list<Type> values) {
+        Init(values);
+    }
+
+	SingleLinkedList(const SingleLinkedList& other) {
+		Init(other);
+	}
 
     SingleLinkedList& operator=(const SingleLinkedList& rhs) {
         if (!(this == &rhs)) {
             SingleLinkedList tmp(rhs);
-            this->swap(tmp);
+            swap(tmp);
         }
         return *this;
     }
@@ -118,13 +126,8 @@ public:
     }
     
     void swap(SingleLinkedList& other) noexcept {
-        auto tmp_head_next_node = this->head_.next_node;
-        this->head_.next_node = other.head_.next_node;
-        other.head_.next_node = tmp_head_next_node;
-        
-        auto tmp_size = this->size_;
-        this->size_ = other.size_;
-        other.size_ = tmp_size;
+        std::swap(head_.next_node, other.head_.next_node);
+		std::swap(size_, other.size_);
     }
     
     [[nodiscard]] size_t GetSize() const noexcept {
@@ -174,11 +177,11 @@ public:
     }
 
     [[nodiscard]] ConstIterator cbegin() const noexcept {
-        return ConstIterator(head_.next_node);
+        return begin();
     }
 
     [[nodiscard]] ConstIterator cend() const noexcept {
-        return ConstIterator(nullptr);
+        return end();
     }
     
     [[nodiscard]] Iterator before_begin() noexcept {
@@ -194,6 +197,7 @@ public:
     }
     
     Iterator InsertAfter(ConstIterator pos, const Type& value) {
+		assert(pos.node_ != nullptr);
         auto node_ptr = new Node(value, pos.node_->next_node);
         pos.node_->next_node = node_ptr;
         ++size_;
@@ -201,6 +205,7 @@ public:
     }
 
     void PopFront() noexcept {
+		assert(!IsEmpty());
         auto first_node = head_.next_node;
         head_.next_node = first_node->next_node;
         --size_;
@@ -208,6 +213,7 @@ public:
     }
 
     Iterator EraseAfter(ConstIterator pos) noexcept {
+		assert(size_ != 0 && pos.node_ != nullptr && pos.node_->next_node != nullptr);
         auto marked_for_deletion = pos.node_->next_node;
         pos.node_->next_node = marked_for_deletion->next_node;
         delete marked_for_deletion;
@@ -227,7 +233,13 @@ void swap(SingleLinkedList<Type>& lhs, SingleLinkedList<Type>& rhs) noexcept {
 
 template <typename Type>
 bool operator==(const SingleLinkedList<Type>& lhs, const SingleLinkedList<Type>& rhs) {
-    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    if (&lhs == &rhs) {
+        return true;
+    }
+    if (lhs.GetSize() == rhs.GetSize()) {
+	    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+    return false;
 }
 
 template <typename Type>
